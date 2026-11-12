@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Diario de Síntomas - Bitácora de Salud</title>
+  
+  <!-- PWA & Mobile Web App Meta -->
+  <meta name="theme-color" content="#0284c7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DiarioSalud">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Local Standalone Tailwind & Custom CSS -->
+  <script src="js/tailwind.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Local Offline Libraries: Lucide Icons, jsPDF & AutoTable -->
+  <script src="js/lucide.min.js"></script>
+  <script src="js/jspdf.umd.min.js"></script>
+  <script src="js/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased selection:bg-sky-200">
+
+  <!-- BARRA SUPERIOR / HEADER -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-700 to-sky-500 flex items-center justify-center text-white shadow-md shadow-sky-500/20">
+          <i data-lucide="clipboard-plus" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-none">DIARIO DE SÍNTOMAS</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Control de Cefaleas y Migrañas</p>
+        </div>
+      </div>
+
+      <!-- Botones de Acción en Header -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button id="btnProfile" title="Perfil del Paciente" class="p-2 sm:px-3 sm:py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors">
+          <i data-lucide="user" class="w-4 h-4 text-slate-600"></i>
+          <span class="hidden sm:inline">Paciente</span>
+        </button>
+
+        <button id="btnExportPDFHeader" title="Exportar a PDF (Ficha Médica)" class="px-2.5 py-2 sm:px-3 sm:py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-lg shadow-sm flex items-center gap-1.5 transition-colors">
+          <i data-lucide="file-down" class="w-4 h-4"></i>
+          <span class="hidden xs:inline">PDF</span>
+        </button>
+
+        <button id="btnNewRecord" class="hidden sm:flex px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 active:bg-black rounded-lg shadow-sm items-center gap-1.5 transition-colors">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>Nuevo Registro</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de Paciente Activo -->
+    <div class="bg-sky-50 border-t border-sky-100 py-1.5 px-4 text-xs text-sky-900">
+      <div class="max-w-5xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap">
+          <i data-lucide="user-check" class="w-3.5 h-3.5 text-sky-600 shrink-0"></i>
+          <span class="text-slate-500 font-medium">Paciente:</span>
+          <span id="patientNameDisplay" class="font-semibold text-slate-800 cursor-pointer hover:underline" onclick="openProfileModal()">
+            Sin configurar (toca para editar)
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnLoadDemo" class="text-xs text-sky-700 hover:text-sky-900 underline font-medium">
+            Cargar ejemplos
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 pb-24 space-y-6">
+
+    <!-- TARJETAS DE ESTADÍSTICAS RÁPIDAS -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <span class="text-xs font-medium text-slate-500">Total Crisis</span>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="statTotalCount" class="text-2xl font-bold text-slate-900">0</span>
+          <i data-lucide="activity" class="w-4 h-4 text-sky-500"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <span class="text-xs font-medium text-slate-500">Intensidad Media</span>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="statAvgIntensity" class="text-2xl font-bold text-amber-600">-</span>
+          <i data-lucide="gauge" class="w-4 h-4 text-amber-500"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <span class="text-xs font-medium text-slate-500">Episodios este Mes</span>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="statThisMonth" class="text-2xl font-bold text-slate-900">0</span>
+          <i data-lucide="calendar" class="w-4 h-4 text-emerald-500"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <span class="text-xs font-medium text-slate-500">Desencadenante Top</span>
+        <div class="flex items-baseline justify-between mt-1">
+          <span id="statTopTrigger" class="text-sm font-bold text-slate-800 truncate" title="Desencadenante más repetido">-</span>
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500 shrink-0"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- BARRA DE ACCIONES, BÚSQUEDA Y FILTROS -->
+    <section class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+      <!-- Buscador -->
+      <div class="flex flex-col sm:flex-row gap-2.5 items-center justify-between">
+        <div class="relative w-full sm:w-80">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Buscar por síntoma, fármaco, causa..." 
+            class="w-full pl-9 pr-3 py-2 text-xs md:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white"
+          >
+        </div>
+
+        <!-- Botones de Exportar Adicionales -->
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button id="btnExportPDF" class="flex-1 sm:flex-none px-3 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span>Exportar PDF Ficha</span>
+          </button>
+          <button id="btnExportCSV" title="Exportar a CSV / Excel" class="px-2.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center gap-1 transition-colors">
+            <i data-lucide="table" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Excel/CSV</span>
+          </button>
+          <button id="btnBackupJSON" title="Copia de Seguridad" class="px-2.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center gap-1 transition-colors">
+            <i data-lucide="download-cloud" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Copia</span>
+          </button>
+          <label title="Restaurar Copia" class="px-2.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-colors">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Restaurar</span>
+            <input type="file" id="inputRestoreJSON" accept=".json" class="hidden">
+          </label>
+        </div>
+      </div>
+
+      <!-- Píldoras de Filtro -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+        <span class="text-slate-400 font-medium mr-1 flex items-center gap-1 shrink-0">
+          <i data-lucide="filter" class="w-3.5 h-3.5"></i> Filtrar:
+        </span>
+        <button class="filter-pill px-3 py-1 rounded-full font-medium border bg-sky-600 text-white border-sky-600 shrink-0" data-filter="all">Todos</button>
+        <button class="filter-pill px-3 py-1 rounded-full font-medium border bg-white text-slate-600 border-slate-200 shrink-0" data-filter="month">Este Mes</button>
+        <button class="filter-pill px-3 py-1 rounded-full font-medium border bg-white text-slate-600 border-slate-200 shrink-0" data-filter="week">Últimos 7 días</button>
+        <button class="filter-pill px-3 py-1 rounded-full font-medium border bg-white text-slate-600 border-slate-200 shrink-0" data-filter="severe">Crisis Severas (EVA ≥ 7)</button>
+      </div>
+    </section>
+
+    <!-- LISTADO DE REGISTROS -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Historial de Episodios Registrados</h2>
+      </div>
+
+      <div id="recordsList" class="space-y-3">
+        <!-- Renderizado dinámico desde app.js -->
+      </div>
+
+      <!-- Estado Vacío -->
+      <div id="emptyState" class="hidden bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center space-y-4">
+        <div class="w-16 h-16 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center mx-auto">
+          <i data-lucide="file-plus-2" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-semibold text-slate-800">Aún no hay registros de síntomas</h3>
+          <p class="text-xs md:text-sm text-slate-500 max-w-sm mx-auto mt-1">
+            Empieza a registrar tus episodios de dolor para generar la ficha médica en PDF que te solicitó tu médico.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+          <button onclick="openRecordModal()" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs md:text-sm font-semibold rounded-xl shadow-md shadow-sky-600/20 inline-flex items-center gap-1.5 transition-all">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Registrar mi primer episodio
+          </button>
+          <button onclick="loadDemoData()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs md:text-sm font-medium rounded-xl inline-flex items-center gap-1.5 transition-colors">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+            Cargar 3 ejemplos médicos
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- NOTAS MÉDICAS AL PIE DE PÁGINA (Idénticas a la ficha física) -->
+    <footer class="bg-slate-100/80 rounded-xl p-4 border border-slate-200 text-[11px] md:text-xs text-slate-600 space-y-1.5">
+      <div class="font-bold text-slate-700 flex items-center gap-1.5">
+        <i data-lucide="info" class="w-4 h-4 text-sky-600"></i>
+        Guía de Registro (según ficha médica):
+      </div>
+      <p class="leading-relaxed"><strong>** Fecha y hora:</strong> Identificar frecuencia y presentación (matutina, vespertina, nocturna).</p>
+      <p class="leading-relaxed"><strong>** Características del dolor y localización:</strong> Identificar episodios migrañosos típicos (tipo tensión, cervicalgia, hemicránea pulsátil).</p>
+      <p class="leading-relaxed"><strong>** Factores desencadenantes:</strong> Ciclo menstrual, sueño, factores psicológicos (estrés), hormonales (ACO), físicos y metabólicos (ejercicio, ayuno, etc.), ambientales, alimentación.</p>
+    </footer>
+
+  </main>
+
+  <!-- BOTÓN FLOTANTE (FAB) PARA MÓVILES -->
+  <button id="btnFabNew" class="sm:hidden fixed bottom-5 right-5 z-40 w-14 h-14 bg-sky-600 text-white rounded-full shadow-lg shadow-sky-600/40 flex items-center justify-center hover:bg-sky-700 active:scale-95 transition-all" aria-label="Nuevo Registro">
+    <i data-lucide="plus" class="w-7 h-7"></i>
+  </button>
+
+  <!-- MODAL / BOTTOM SHEET: NUEVO / EDITAR REGISTRO -->
+  <div id="recordModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <!-- Backdrop -->
+    <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/60 modal-backdrop"></div>
+
+    <!-- Modal Content -->
+    <div class="relative bg-white w-full sm:max-w-2xl max-h-[92vh] sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col z-10 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+            <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+          </div>
+          <h3 id="modalTitle" class="text-base font-bold text-slate-900">Registrar Nuevo Episodio</h3>
+        </div>
+        <button id="btnCloseModal" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Formulario con Scroll -->
+      <form id="recordForm" class="flex-1 overflow-y-auto p-5 space-y-5 text-xs md:text-sm">
+        
+        <!-- 1. FECHA Y HORA + PRESENTACIÓN -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+            1. Fecha, Hora y Presentación
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <span class="text-[11px] text-slate-500 font-medium block mb-1">Fecha</span>
+              <input type="date" id="inputFecha" required class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            </div>
+            <div>
+              <span class="text-[11px] text-slate-500 font-medium block mb-1">Hora aproximada</span>
+              <input type="time" id="inputHora" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <span class="text-[11px] text-slate-500 font-medium block mb-1.5">Presentación del episodio:</span>
+            <div id="chipsPresentacion" class="flex flex-wrap gap-1.5">
+              <button type="button" class="chip-btn" data-val="Matutina">🌅 Matutina (Mañana)</button>
+              <button type="button" class="chip-btn" data-val="Vespertina">☀️ Vespertina (Tarde)</button>
+              <button type="button" class="chip-btn" data-val="Nocturna">🌙 Nocturna (Noche)</button>
+              <button type="button" class="chip-btn" data-val="Madrugada">🌌 Madrugada</button>
+            </div>
+            <input type="hidden" id="inputPresentacion" value="Matutina">
+          </div>
+        </div>
+
+        <!-- 2. CARACTERÍSTICAS Y LOCALIZACIÓN -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <div class="flex items-center justify-between">
+            <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+              2. Características del dolor y localización
+            </label>
+          </div>
+          <p class="text-[11px] text-slate-500">Toca las etiquetas que describan tu dolor o escribe en el cuadro:</p>
+          
+          <!-- Chips de Tipo de Dolor -->
+          <div class="space-y-1">
+            <span class="text-[11px] font-semibold text-slate-600">Tipo de dolor:</span>
+            <div id="chipsTipoDolor" class="flex flex-wrap gap-1.5">
+              <button type="button" class="chip-btn">Tipo tensión (opresivo)</button>
+              <button type="button" class="chip-btn">Migrañoso típico</button>
+              <button type="button" class="chip-btn">Pulsátil (latidos)</button>
+              <button type="button" class="chip-btn">Cervicalgia (cuello)</button>
+              <button type="button" class="chip-btn">Punzante (pinchazos)</button>
+              <button type="button" class="chip-btn">Quemante / Ardor</button>
+              <button type="button" class="chip-btn">Pesadez / Sordo</button>
+            </div>
+          </div>
+
+          <!-- Chips de Localización -->
+          <div class="space-y-1 pt-1.5">
+            <span class="text-[11px] font-semibold text-slate-600">Zona o localización:</span>
+            <div id="chipsLocalizacion" class="flex flex-wrap gap-1.5">
+              <button type="button" class="chip-btn">Hemicránea izquierda</button>
+              <button type="button" class="chip-btn">Hemicránea derecha</button>
+              <button type="button" class="chip-btn">Frontal (frente)</button>
+              <button type="button" class="chip-btn">Retroocular (ojo)</button>
+              <button type="button" class="chip-btn">Occipital / Nuca</button>
+              <button type="button" class="chip-btn">Holocraneana (toda la cabeza)</button>
+              <button type="button" class="chip-btn">Cervical (cuello y hombros)</button>
+            </div>
+          </div>
+
+          <textarea 
+            id="inputCaracteristicas" 
+            rows="2" 
+            placeholder="Ej: Dolor pulsátil en la sien izquierda con molestia detrás del ojo..." 
+            class="w-full mt-2 px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+          ></textarea>
+        </div>
+
+        <!-- 3. INTENSIDAD 0-10 (ESCALA EVA) -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <div class="flex items-center justify-between">
+            <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+              3. Intensidad del Dolor (0 a 10)
+            </label>
+            <div class="flex items-center gap-2">
+              <span id="intensityEmoji" class="text-xl">😐</span>
+              <span id="intensityBadge" class="px-2.5 py-1 rounded-full text-xs font-bold border bg-amber-100 text-amber-800 border-amber-300">
+                5 / 10
+              </span>
+            </div>
+          </div>
+
+          <div class="pt-2 px-1">
+            <input type="range" id="inputIntensidad" min="0" max="10" step="1" value="5" class="cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-400 font-bold mt-1 px-1">
+              <span>0 (Sin dolor)</span>
+              <span>3 (Leve)</span>
+              <span>5 (Moderado)</span>
+              <span>8 (Severo)</span>
+              <span>10 (Insoportable)</span>
+            </div>
+          </div>
+          <p id="intensityLabel" class="text-xs text-center font-medium text-slate-600 pt-1">
+            5 - Dolor moderado
+          </p>
+        </div>
+
+        <!-- 4. DURACIÓN -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+            4. Duración del Episodio
+          </label>
+          <div id="chipsDuracion" class="flex flex-wrap gap-1.5">
+            <button type="button" class="chip-btn" data-val="Menos de 1 hora">&lt; 1 hora</button>
+            <button type="button" class="chip-btn" data-val="1 a 2 horas">1 a 2 horas</button>
+            <button type="button" class="chip-btn" data-val="2 a 4 horas">2 a 4 horas</button>
+            <button type="button" class="chip-btn" data-val="4 a 8 horas">4 a 8 horas</button>
+            <button type="button" class="chip-btn" data-val="8 a 12 horas">8 a 12 horas</button>
+            <button type="button" class="chip-btn" data-val="Todo el día (24h)">Todo el día (24h)</button>
+            <button type="button" class="chip-btn" data-val="Varios días (+24h)">Varios días (+24h)</button>
+          </div>
+          <input 
+            type="text" 
+            id="inputDuracion" 
+            placeholder="O escribe la duración exacta (ej: 3 horas y media)" 
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+          >
+        </div>
+
+        <!-- 5. FACTORES DESENCADENANTES -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+            5. Factores Desencadenantes
+          </label>
+          <p class="text-[11px] text-slate-500">¿Qué provocó o inició este episodio?</p>
+          <div id="chipsDesencadenantes" class="flex flex-wrap gap-1.5">
+            <button type="button" class="chip-btn">Ciclo menstrual</button>
+            <button type="button" class="chip-btn">Falta de sueño / Insomnio</button>
+            <button type="button" class="chip-btn">Exceso de sueño</button>
+            <button type="button" class="chip-btn">Estrés / Factores psicológicos</button>
+            <button type="button" class="chip-btn">Hormonales (ACO)</button>
+            <button type="button" class="chip-btn">Ejercicio físico</button>
+            <button type="button" class="chip-btn">Ayuno / Salteo de comida</button>
+            <button type="button" class="chip-btn">Alimentación (café/chocolate/alcohol)</button>
+            <button type="button" class="chip-btn">Ambientales (calor/clima/sol)</button>
+            <button type="button" class="chip-btn">Pantallas / Luz intensa</button>
+            <button type="button" class="chip-btn">Ruido fuerte</button>
+          </div>
+          <textarea 
+            id="inputDesencadenantes" 
+            rows="2" 
+            placeholder="Detalles de desencadenantes..." 
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+          ></textarea>
+        </div>
+
+        <!-- 6. TRATAMIENTO SI/NO & MEDICAMENTO -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+            6. Tratamiento Farmacológico (Si / No)
+          </label>
+          <div class="flex items-center gap-6 py-1">
+            <label class="inline-flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+              <input type="radio" name="tratamientoOpt" id="tratamientoNo" value="No" checked class="w-4 h-4 text-sky-600 focus:ring-sky-500">
+              <span>No tomó tratamiento</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+              <input type="radio" name="tratamientoOpt" id="tratamientoSi" value="Sí" class="w-4 h-4 text-sky-600 focus:ring-sky-500">
+              <span class="text-sky-700 font-bold">Sí, tomó medicación</span>
+            </label>
+          </div>
+
+          <!-- Campos adicionales si marcó Sí -->
+          <div id="tratamientoDetailsBox" class="hidden space-y-3 pt-2 border-t border-slate-200">
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-semibold text-slate-600">Medicamento y dosis tomada:</span>
+                <button type="button" id="btnToggleAddMed" class="text-[11px] text-sky-600 hover:text-sky-800 font-semibold flex items-center gap-1 transition-colors">
+                  <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Agregar medicamento nuevo
+                </button>
+              </div>
+
+              <!-- Formulario rápido para nuevo medicamento persistente -->
+              <div id="boxAddCustomMed" class="hidden mb-2.5 p-2.5 bg-sky-50/90 border border-sky-200 rounded-xl space-y-1.5">
+                <span class="text-[11px] font-bold text-sky-900 block">Nuevo tratamiento frecuente:</span>
+                <div class="flex gap-1.5">
+                  <input 
+                    type="text" 
+                    id="inputNewMedName" 
+                    placeholder="Ej: Naproxeno 500mg, Migranol, Topiramato..." 
+                    class="flex-1 px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  >
+                  <button type="button" id="btnSaveNewMed" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-sm">
+                    Guardar
+                  </button>
+                  <button type="button" id="btnCancelAddMed" class="px-2 py-1.5 text-slate-400 hover:text-slate-600 text-xs">
+                    ✕
+                  </button>
+                </div>
+                <span class="text-[10px] text-sky-700 block">💡 Se guardará como botón rápido permanente para no tener que escribirlo cada vez.</span>
+              </div>
+
+              <div id="chipsMedicamentos" class="flex flex-wrap gap-1.5 mb-2">
+                <!-- Se llena dinámicamente desde AppState.medications -->
+              </div>
+
+              <div class="relative">
+                <input 
+                  type="text" 
+                  id="inputMedicamento" 
+                  placeholder="Ej: Ibuprofeno 600 mg a las 14:00" 
+                  class="w-full px-3 py-2 pr-28 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                >
+                <button 
+                  type="button" 
+                  id="btnQuickSaveInputMed" 
+                  class="hidden absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-[10px] font-semibold bg-sky-100 hover:bg-sky-200 text-sky-700 rounded-md transition-colors"
+                  title="Guardar este medicamento como botón para siempre"
+                >
+                  + Guardar botón
+                </button>
+              </div>
+            </div>
+
+            <!-- 7. MEJORÍA CON EL TRATAMIENTO -->
+            <div>
+              <span class="text-[11px] font-semibold text-slate-600 block mb-1">Mejoría con el tratamiento:</span>
+              <div id="chipsMejoria" class="flex flex-wrap gap-1.5">
+                <button type="button" class="chip-btn" data-val="Mejoría total">✅ Mejoría total</button>
+                <button type="button" class="chip-btn" data-val="Mejoría parcial">🟡 Mejoría parcial</button>
+                <button type="button" class="chip-btn active" data-val="Sin mejoría">❌ Sin mejoría</button>
+                <button type="button" class="chip-btn" data-val="Empeoró">📉 Empeoró</button>
+              </div>
+              <input type="hidden" id="inputMejoria" value="Sin mejoría">
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. FACTORES ALIVIANTES -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+            8. Factores aliviantes o que le quita los síntomas
+          </label>
+          <div id="chipsAliviantes" class="flex flex-wrap gap-1.5">
+            <button type="button" class="chip-btn">Reposo en cama</button>
+            <button type="button" class="chip-btn">Habitación oscura</button>
+            <button type="button" class="chip-btn">Silencio absoluto</button>
+            <button type="button" class="chip-btn">Compresas frías / Hielo</button>
+            <button type="button" class="chip-btn">Dormir una siesta</button>
+            <button type="button" class="chip-btn">Masaje en el cuello</button>
+            <button type="button" class="chip-btn">Ducha caliente</button>
+            <button type="button" class="chip-btn">Hidratación abundante</button>
+            <button type="button" class="chip-btn">Café / Bebida caliente</button>
+          </div>
+          <textarea 
+            id="inputFactoresAliviantes" 
+            rows="2" 
+            placeholder="Ej: Acostarme a oscuras en silencio con una compresa fría..." 
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+          ></textarea>
+        </div>
+
+        <!-- 9. OTROS SÍNTOMAS / NOTAS -->
+        <div class="space-y-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+          <label class="block font-bold text-slate-800 text-xs uppercase tracking-wider">
+            9. Otros Síntomas Acompañantes y Observaciones
+          </label>
+          <div id="chipsOtros" class="flex flex-wrap gap-1.5">
+            <button type="button" class="chip-btn">Náuseas</button>
+            <button type="button" class="chip-btn">Vómitos</button>
+            <button type="button" class="chip-btn">Fotofobia (molesta la luz)</button>
+            <button type="button" class="chip-btn">Fonofobia (molesta el ruido)</button>
+            <button type="button" class="chip-btn">Aura visual (luces / destellos)</button>
+            <button type="button" class="chip-btn">Mareos / Vértigo</button>
+            <button type="button" class="chip-btn">Sensibilidad a olores</button>
+            <button type="button" class="chip-btn">Rigidez de nuca</button>
+          </div>
+          <textarea 
+            id="inputOtros" 
+            rows="2" 
+            placeholder="Ej: Aura visual previa 20 min antes, visión borrosa..." 
+            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+          ></textarea>
+        </div>
+
+        <!-- Botones de Acción del Modal -->
+        <div class="pt-3 pb-2 flex items-center justify-end gap-2 border-t border-slate-200">
+          <button type="button" id="btnCancelRecord" class="px-4 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 active:bg-sky-800 rounded-xl shadow-md shadow-sky-600/25 flex items-center gap-1.5 transition-all">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Guardar Episodio</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PERFIL DEL PACIENTE -->
+  <div id="profileModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/60 modal-backdrop" onclick="closeProfileModal()"></div>
+    <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5 z-10 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="user-cog" class="w-5 h-5 text-sky-600"></i>
+          Datos del Paciente
+        </h3>
+        <button id="btnCloseProfileModal" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="profileForm" class="space-y-3 text-xs md:text-sm">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre completo del paciente:</label>
+          <input type="text" id="profileNombre" placeholder="Ej: María González" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+          <span class="text-[11px] text-slate-400">Aparecerá en el encabezado del PDF para tu médico.</span>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Médico tratante / Especialidad (opcional):</label>
+          <input type="text" id="profileMedico" placeholder="Ej: Dr. Roberto Gómez (Neurología)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Diagnóstico / Observaciones médicas (opcional):</label>
+          <textarea id="profileNotas" rows="2" placeholder="Ej: Migraña con aura episódica, Cefalea tensional frecuente..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"></textarea>
+        </div>
+
+        <div class="pt-3 flex justify-end gap-2 border-t border-slate-200">
+          <button type="button" onclick="closeProfileModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Cancelar</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm">Guardar Datos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- REGISTRO DEL SERVICE WORKER (PWA OFFLINE) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          console.log('Service Worker registrado con éxito:', reg.scope);
+        }).catch((err) => {
+          console.log('Registro de Service Worker falló:', err);
+        });
+      });
+    }
+  </script>
+
+  <!-- LÓGICA DE APLICACIÓN -->
+  <script src="js/pdf-export.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+
+</body>
+</html>

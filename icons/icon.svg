@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="50%" stop-color="#0369a1" />
+      <stop offset="100%" stop-color="#075985" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#grad)" />
+  <circle cx="256" cy="256" r="190" fill="white" opacity="0.1" />
+  
+  <!-- Clipboard / Health Diary -->
+  <g filter="url(#shadow)">
+    <!-- Main Sheet -->
+    <rect x="136" y="90" width="240" height="340" rx="20" fill="#ffffff"/>
+    
+    <!-- Clip Top -->
+    <rect x="196" y="70" width="120" height="40" rx="10" fill="#38bdf8" />
+    <circle cx="256" cy="90" r="8" fill="white" />
+    
+    <!-- Header Lines -->
+    <rect x="176" y="140" width="120" height="14" rx="7" fill="#0284c7" />
+    <rect x="176" y="164" width="80" height="10" rx="5" fill="#94a3b8" />
+    
+    <!-- Heartbeat / EKG pulse -->
+    <path d="M166 260 L205 260 L225 210 L248 315 L272 230 L290 275 L305 260 L346 260" 
+          stroke="#0284c7" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          
+    <!-- Status / Severity Dots (Green, Yellow, Red) -->
+    <circle cx="186" cy="340" r="12" fill="#22c55e" />
+    <circle cx="226" cy="340" r="12" fill="#eab308" />
+    <circle cx="266" cy="340" r="12" fill="#f97316" />
+    <circle cx="306" cy="340" r="12" fill="#ef4444" />
+    
+    <rect x="176" y="375" width="160" height="10" rx="5" fill="#cbd5e1" />
+    <rect x="176" y="395" width="110" height="10" rx="5" fill="#e2e8f0" />
+  </g>
+</svg>
